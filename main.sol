@@ -843,3 +843,68 @@ contract SpellaViews {
             listed: listed,
             tradeCount: tradeCount,
             volumeWei: volumeWei
+        });
+    }
+
+    function getSpellViews(uint256[] calldata spellIds) external view returns (SpellView[] memory views) {
+        views = new SpellView[](spellIds.length);
+        for (uint256 i; i < spellIds.length; i++) {
+            views[i] = this.getSpellView(spellIds[i]);
+        }
+    }
+
+    function getListedSpellIdsSlice(uint256 offset, uint256 limit) external view returns (uint256[] memory spellIds) {
+        if (limit > SPEL_VIEW_MAX_PAGE) limit = SPEL_VIEW_MAX_PAGE;
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getListedSpellIds()")
+        );
+        if (!ok || data.length == 0) return new uint256[](0);
+        spellIds = abi.decode(data, (uint256[]));
+        uint256 total = spellIds.length;
+        if (offset >= total) return new uint256[](0);
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 n = end - offset;
+        uint256[] memory out = new uint256[](n);
+        for (uint256 i; i < n; i++) {
+            out[i] = spellIds[offset + i];
+        }
+        return out;
+    }
+
+    function getListedSpellIdsInCategorySlice(bytes32 categoryHash, uint256 offset, uint256 limit) external view returns (uint256[] memory) {
+        if (limit > SPEL_VIEW_MAX_PAGE) limit = SPEL_VIEW_MAX_PAGE;
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSpellIdsInCategory(bytes32)", categoryHash)
+        );
+        if (!ok || data.length == 0) return new uint256[](0);
+        uint256[] memory spellIds = abi.decode(data, (uint256[]));
+        uint256 total = spellIds.length;
+        if (offset >= total) return new uint256[](0);
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 n = end - offset;
+        uint256[] memory out = new uint256[](n);
+        for (uint256 i; i < n; i++) {
+            out[i] = spellIds[offset + i];
+        }
+        return out;
+    }
+
+    function getPlatformStatsView() external view returns (
+        uint256 totalSpells,
+        uint256 totalListed,
+        uint256 totalTrades,
+        uint256 accumulatedFeesWei,
+        uint256 currentFeeBps,
+        bool paused
+    ) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getPlatformStats()")
+        );
+        if (!ok || data.length == 0) return (0, 0, 0, 0, 0, true);
+        return abi.decode(data, (uint256, uint256, uint256, uint256, uint256, bool));
+    }
+
+    function getFeeForPrice(uint256 priceWei) external view returns (uint256 feeWei) {
+        (bool ok, bytes memory data) = spella.staticcall(
