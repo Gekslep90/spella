@@ -648,3 +648,68 @@ contract Spella is ReentrancyGuard, Pausable, Ownable {
         bytes32[] memory titleHashes,
         bytes32[] memory categoryHashes,
         uint256[] memory pricesWei,
+        bool[] memory listedFlags
+    ) {
+        uint256 n = spellIds.length;
+        sellers = new address[](n);
+        titleHashes = new bytes32[](n);
+        categoryHashes = new bytes32[](n);
+        pricesWei = new uint256[](n);
+        listedFlags = new bool[](n);
+        for (uint256 i; i < n; i++) {
+            uint256 id = spellIds[i];
+            if (id != 0 && id <= spellCounter) {
+                SpellEntry storage e = spells[id];
+                sellers[i] = e.seller;
+                titleHashes[i] = e.titleHash;
+                categoryHashes[i] = e.categoryHash;
+                pricesWei[i] = e.priceWei;
+                listedFlags[i] = e.listed;
+            }
+        }
+    }
+
+    function getMultipleSpellStats(uint256[] calldata spellIds) external view returns (
+        uint256[] memory tradeCounts,
+        uint256[] memory volumesWei
+    ) {
+        uint256 n = spellIds.length;
+        tradeCounts = new uint256[](n);
+        volumesWei = new uint256[](n);
+        for (uint256 i; i < n; i++) {
+            uint256 id = spellIds[i];
+            if (id != 0 && id <= spellCounter) {
+                tradeCounts[i] = spellTradeCount[id];
+                volumesWei[i] = spellVolumeWei[id];
+            }
+        }
+    }
+
+    function totalVolumeWei() external view returns (uint256 total) {
+        for (uint256 i; i < _spellIds.length; i++) {
+            total += spellVolumeWei[_spellIds[i]];
+        }
+    }
+
+    function getListedIdsForCategories(bytes32[] calldata categoryHashes) external view returns (uint256[][] memory spellIdLists) {
+        spellIdLists = new uint256[][](categoryHashes.length);
+        for (uint256 c; c < categoryHashes.length; c++) {
+            uint256[] memory all = _spellIds;
+            uint256 count;
+            for (uint256 i; i < all.length; i++) {
+                if (spells[all[i]].categoryHash == categoryHashes[c] && spells[all[i]].listed) count++;
+            }
+            spellIdLists[c] = new uint256[](count);
+            uint256 j;
+            for (uint256 i; i < all.length; i++) {
+                if (spells[all[i]].categoryHash == categoryHashes[c] && spells[all[i]].listed) spellIdLists[c][j++] = all[i];
+            }
+        }
+    }
+
+    function getCategoryVolumes(bytes32[] calldata categoryHashes) external view returns (uint256[] memory volumes) {
+        volumes = new uint256[](categoryHashes.length);
+        for (uint256 i; i < categoryHashes.length; i++) {
+            volumes[i] = categoryVolumeWei[categoryHashes[i]];
+        }
+    }
