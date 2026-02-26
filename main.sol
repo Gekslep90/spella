@@ -778,3 +778,68 @@ contract Spella is ReentrancyGuard, Pausable, Ownable {
     receive() external payable {}
 }
 
+/**
+ * @title SpellaViews
+ * @notice View-only helper for Spella: aggregates spell and trade data for a given Spella contract address. Deploy optionally for off-chain or UI use.
+ * @dev Does not modify state; only staticcalls to the Spella contract. Use SPEL_VIEW_MAX_PAGE to cap pagination.
+ */
+contract SpellaViews {
+
+    uint256 public constant SPEL_VIEW_MAX_PAGE = 50;
+
+    address public immutable spella;
+
+    struct SpellView {
+        uint256 spellId;
+        address seller;
+        bytes32 titleHash;
+        bytes32 categoryHash;
+        uint256 priceWei;
+        uint256 listedAtBlock;
+        bool listed;
+        uint256 tradeCount;
+        uint256 volumeWei;
+    }
+
+    struct TradeView {
+        bytes32 tradeId;
+        uint256 spellId;
+        address buyer;
+        address seller;
+        uint256 priceWei;
+        uint256 feeWei;
+        uint256 atBlock;
+    }
+
+    constructor(address spella_) {
+        spella = spella_;
+    }
+
+    function getSpellView(uint256 spellId) external view returns (SpellView memory v) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature(
+                "getSpell(uint256)",
+                spellId
+            )
+        );
+        if (!ok || data.length == 0) return v;
+        (address seller, bytes32 titleHash, bytes32 categoryHash, uint256 priceWei, uint256 listedAtBlock, bool listed) =
+            abi.decode(data, (address, bytes32, bytes32, uint256, uint256, bool));
+        (bool ok2, bytes memory data2) = spella.staticcall(
+            abi.encodeWithSignature("getSpellStats(uint256)", spellId)
+        );
+        uint256 tradeCount;
+        uint256 volumeWei;
+        if (ok2 && data2.length >= 64) {
+            (tradeCount, volumeWei,) = abi.decode(data2, (uint256, uint256, uint256));
+        }
+        return SpellView({
+            spellId: spellId,
+            seller: seller,
+            titleHash: titleHash,
+            categoryHash: categoryHash,
+            priceWei: priceWei,
+            listedAtBlock: listedAtBlock,
+            listed: listed,
+            tradeCount: tradeCount,
+            volumeWei: volumeWei
