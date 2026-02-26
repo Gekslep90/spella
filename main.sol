@@ -973,3 +973,68 @@ contract SpellaViews {
     function getSpellSellerView(uint256 spellId) external view returns (address) {
         (bool ok, bytes memory data) = spella.staticcall(
             abi.encodeWithSignature("getSpellSeller(uint256)", spellId)
+        );
+        if (!ok || data.length == 0) return address(0);
+        return abi.decode(data, (address));
+    }
+
+    function getListedSpellIdsInPriceRangeView(uint256 minPriceWei, uint256 maxPriceWei) external view returns (uint256[] memory) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getListedSpellIdsInPriceRange(uint256,uint256)", minPriceWei, maxPriceWei)
+        );
+        if (!ok || data.length == 0) return new uint256[](0);
+        return abi.decode(data, (uint256[]));
+    }
+
+    function getSellerSpellIds(address seller) external view returns (uint256[] memory) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSpellIdsBySeller(address)", seller)
+        );
+        if (!ok || data.length == 0) return new uint256[](0);
+        return abi.decode(data, (uint256[]));
+    }
+
+    function getSellerListedSpellIds(address seller) external view returns (uint256[] memory) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getListedSpellIdsBySeller(address)", seller)
+        );
+        if (!ok || data.length == 0) return new uint256[](0);
+        return abi.decode(data, (uint256[]));
+    }
+
+    function getSellerListedInCategory(address seller, bytes32 categoryHash) external view returns (uint256[] memory) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getListedSpellIdsBySellerInCategory(address,bytes32)", seller, categoryHash)
+        );
+        if (!ok || data.length == 0) return new uint256[](0);
+        return abi.decode(data, (uint256[]));
+    }
+
+    function getSpellViewsPaginated(uint256 offset, uint256 limit) external view returns (SpellView[] memory views) {
+        if (limit > SPEL_VIEW_MAX_PAGE) limit = SPEL_VIEW_MAX_PAGE;
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSpellIds()")
+        );
+        if (!ok || data.length == 0) return new SpellView[](0);
+        uint256[] memory allIds = abi.decode(data, (uint256[]));
+        uint256 total = allIds.length;
+        if (offset >= total) return new SpellView[](0);
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 n = end - offset;
+        views = new SpellView[](n);
+        for (uint256 i; i < n; i++) {
+            views[i] = this.getSpellView(allIds[offset + i]);
+        }
+    }
+
+    function getListedSpellViewsPaginated(uint256 offset, uint256 limit) external view returns (SpellView[] memory views) {
+        if (limit > SPEL_VIEW_MAX_PAGE) limit = SPEL_VIEW_MAX_PAGE;
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getListedSpellIds()")
+        );
+        if (!ok || data.length == 0) return new SpellView[](0);
+        uint256[] memory listedIds = abi.decode(data, (uint256[]));
+        uint256 total = listedIds.length;
+        if (offset >= total) return new SpellView[](0);
+        uint256 end = offset + limit;
