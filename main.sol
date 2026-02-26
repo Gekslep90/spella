@@ -193,3 +193,68 @@ contract Spella is ReentrancyGuard, Pausable, Ownable {
     }
 
     /// @notice Buy a listed spell. Sender must send msg.value >= spell price. Seller cannot buy own spell. Fee (feeBps) goes to treasury; rest to seller.
+    /// @param spellId The spell to purchase.
+    /// @return tradeId Unique trade identifier (keccak256 of chain, block, sequence, parties, amount, prevrandao).
+    /// @return feeWei The fee taken (priceWei * feeBps / 10000).
+    function buySpell(uint256 spellId) external payable nonReentrant whenNotPaused returns (bytes32 tradeId, uint256 feeWei) {
+        if (spellId == 0 || spellId > spellCounter) revert SPEL_SpellNotFound();
+        SpellEntry storage entry = spells[spellId];
+        if (!entry.listed) revert SPEL_SpellNotListed();
+        if (entry.seller == msg.sender) revert SPEL_BuyerIsSeller();
+        if (msg.value < entry.priceWei) revert SPEL_InsufficientPayment();
+
+        entry.listed = false;
+        feeWei = (entry.priceWei * feeBps) / SPEL_BPS_BASE;
+        uint256 sellerReceives = entry.priceWei - feeWei;
+        _feeAccum += feeWei;
+
+        tradeId = keccak256(abi.encodePacked(
+            "Spella_Trade",
+            block.chainid,
+            block.number,
+            tradeSequence++,
+            spellId,
+            msg.sender,
+            entry.seller,
+            entry.priceWei,
+            block.prevrandao
+        ));
+
+        tradeSnapshots[tradeId] = TradeRecord({
+            tradeId: tradeId,
+            spellId: spellId,
+            buyer: msg.sender,
+            seller: entry.seller,
+            priceWei: entry.priceWei,
+            feeWei: feeWei,
+            atBlock: block.number
+        });
+
+        spellTradeCount[spellId]++;
+        spellVolumeWei[spellId] += entry.priceWei;
+        categoryVolumeWei[entry.categoryHash] += entry.priceWei;
+
+        (bool okSeller,) = entry.seller.call{value: sellerReceives}("");
+        if (!okSeller) revert SPEL_TransferFailed();
+
+        emit SpellTraded(tradeId, spellId, msg.sender, entry.seller, entry.priceWei, feeWei, block.number);
+    }
+
+    /// @notice Send all accumulated fees (from buySpell) to the treasury address. Anyone may call.
+    function sweepFees() external nonReentrant {
+        uint256 amount = _feeAccum;
+        if (amount == 0) return;
+        _feeAccum = 0;
+        (bool ok,) = treasury.call{value: amount}("");
+        if (!ok) revert SPEL_TransferFailed();
+        emit FeeSwept(treasury, amount, block.number);
+    }
+
+    /// @notice Keeper-only: delist a spell without being the seller. Used for moderation or policy.
+    /// @param spellId The spell to delist.
+    function keeperDelist(uint256 spellId) external {
+        if (msg.sender != spellKeeper) revert SPEL_NotKeeper();
+        if (spellId == 0 || spellId > spellCounter) revert SPEL_SpellNotFound();
+        SpellEntry storage entry = spells[spellId];
+        if (!entry.listed) revert SPEL_SpellNotListed();
+        entry.listed = false;
