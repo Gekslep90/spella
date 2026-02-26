@@ -583,3 +583,68 @@ contract Spella is ReentrancyGuard, Pausable, Ownable {
     function getSpellCategory(uint256 spellId) external view returns (bytes32) {
         if (spellId == 0 || spellId > spellCounter) revert SPEL_SpellNotFound();
         return spells[spellId].categoryHash;
+    }
+
+    function getSpellTitleHash(uint256 spellId) external view returns (bytes32) {
+        if (spellId == 0 || spellId > spellCounter) revert SPEL_SpellNotFound();
+        return spells[spellId].titleHash;
+    }
+
+    function getPlatformStats() external view returns (
+        uint256 totalSpells,
+        uint256 totalListed,
+        uint256 totalTrades,
+        uint256 accumulatedFeesWei,
+        uint256 currentFeeBps,
+        bool paused
+    ) {
+        totalSpells = spellCounter;
+        totalListed = 0;
+        for (uint256 i; i < _spellIds.length; i++) {
+            if (spells[_spellIds[i]].listed) totalListed++;
+        }
+        totalTrades = tradeSequence;
+        accumulatedFeesWei = _feeAccum;
+        currentFeeBps = feeBps;
+        paused = platformPaused;
+    }
+
+    function getSpellStats(uint256 spellId) external view returns (
+        uint256 tradeCount,
+        uint256 volumeWei,
+        uint256 listedAtBlock
+    ) {
+        if (spellId == 0 || spellId > spellCounter) revert SPEL_SpellNotFound();
+        SpellEntry storage e = spells[spellId];
+        return (spellTradeCount[spellId], spellVolumeWei[spellId], e.listedAtBlock);
+    }
+
+    function getSpellFull(uint256 spellId) external view returns (
+        address seller,
+        bytes32 titleHash,
+        bytes32 categoryHash,
+        uint256 priceWei,
+        uint256 listedAtBlock,
+        bool listed,
+        uint256 tradeCount,
+        uint256 volumeWei
+    ) {
+        if (spellId == 0 || spellId > spellCounter) revert SPEL_SpellNotFound();
+        SpellEntry storage e = spells[spellId];
+        return (
+            e.seller,
+            e.titleHash,
+            e.categoryHash,
+            e.priceWei,
+            e.listedAtBlock,
+            e.listed,
+            spellTradeCount[spellId],
+            spellVolumeWei[spellId]
+        );
+    }
+
+    function getMultipleSpells(uint256[] calldata spellIds) external view returns (
+        address[] memory sellers,
+        bytes32[] memory titleHashes,
+        bytes32[] memory categoryHashes,
+        uint256[] memory pricesWei,
