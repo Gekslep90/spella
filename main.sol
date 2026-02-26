@@ -323,3 +323,68 @@ contract Spella is ReentrancyGuard, Pausable, Ownable {
 
     function getSpellIds() external view returns (uint256[] memory) {
         return _spellIds;
+    }
+
+    function getSpellIdsBySeller(address seller) external view returns (uint256[] memory) {
+        return _spellIdsBySeller[seller];
+    }
+
+    function getSpell(uint256 spellId) external view returns (
+        address seller,
+        bytes32 titleHash,
+        bytes32 categoryHash,
+        uint256 priceWei,
+        uint256 listedAtBlock,
+        bool listed
+    ) {
+        if (spellId == 0 || spellId > spellCounter) revert SPEL_SpellNotFound();
+        SpellEntry storage e = spells[spellId];
+        return (e.seller, e.titleHash, e.categoryHash, e.priceWei, e.listedAtBlock, e.listed);
+    }
+
+    function getTrade(bytes32 tradeId) external view returns (
+        uint256 spellId,
+        address buyer,
+        address seller,
+        uint256 priceWei,
+        uint256 feeWei,
+        uint256 atBlock
+    ) {
+        TradeRecord storage t = tradeSnapshots[tradeId];
+        return (t.spellId, t.buyer, t.seller, t.priceWei, t.feeWei, t.atBlock);
+    }
+
+    function getListedSpellIds() external view returns (uint256[] memory) {
+        uint256[] memory all = _spellIds;
+        uint256 count;
+        for (uint256 i; i < all.length; i++) {
+            if (spells[all[i]].listed) count++;
+        }
+        uint256[] memory listed = new uint256[](count);
+        uint256 j;
+        for (uint256 i; i < all.length; i++) {
+            if (spells[all[i]].listed) listed[j++] = all[i];
+        }
+        return listed;
+    }
+
+    function getListedSpellIdsBySeller(address seller) external view returns (uint256[] memory) {
+        uint256[] memory ids = _spellIdsBySeller[seller];
+        uint256 count;
+        for (uint256 i; i < ids.length; i++) {
+            if (spells[ids[i]].listed) count++;
+        }
+        uint256[] memory listed = new uint256[](count);
+        uint256 j;
+        for (uint256 i; i < ids.length; i++) {
+            if (spells[ids[i]].listed) listed[j++] = ids[i];
+        }
+        return listed;
+    }
+
+    function getCategoryVolume(bytes32 categoryHash) external view returns (uint256) {
+        return categoryVolumeWei[categoryHash];
+    }
+
+    function getAccumulatedFees() external view returns (uint256) {
+        return _feeAccum;
