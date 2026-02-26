@@ -713,3 +713,68 @@ contract Spella is ReentrancyGuard, Pausable, Ownable {
             volumes[i] = categoryVolumeWei[categoryHashes[i]];
         }
     }
+
+    function getSpellIdsListedAfterBlock(uint256 fromBlock) external view returns (uint256[] memory) {
+        uint256[] memory all = _spellIds;
+        uint256 count;
+        for (uint256 i; i < all.length; i++) {
+            if (spells[all[i]].listed && spells[all[i]].listedAtBlock >= fromBlock) count++;
+        }
+        uint256[] memory out = new uint256[](count);
+        uint256 j;
+        for (uint256 i; i < all.length; i++) {
+            if (spells[all[i]].listed && spells[all[i]].listedAtBlock >= fromBlock) out[j++] = all[i];
+        }
+        return out;
+    }
+
+    function getSpellIdsBySellerPaginated(address seller, uint256 offset, uint256 limit) external view returns (uint256[] memory spellIdsOut) {
+        uint256[] memory ids = _spellIdsBySeller[seller];
+        uint256 total = ids.length;
+        if (offset >= total) return new uint256[](0);
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 n = end - offset;
+        spellIdsOut = new uint256[](n);
+        for (uint256 i; i < n; i++) {
+            spellIdsOut[i] = ids[offset + i];
+        }
+    }
+
+    function getListedSpellIdsPaginatedByCategory(bytes32 categoryHash, uint256 offset, uint256 limit) external view returns (uint256[] memory) {
+        uint256[] memory all = _spellIds;
+        uint256 count;
+        for (uint256 i; i < all.length; i++) {
+            if (spells[all[i]].categoryHash == categoryHash && spells[all[i]].listed) count++;
+        }
+        if (offset >= count) return new uint256[](0);
+        uint256 end = offset + limit;
+        if (end > count) end = count;
+        uint256 n = end - offset;
+        uint256[] memory out = new uint256[](n);
+        uint256 collected;
+        for (uint256 i; i < all.length && collected < end; i++) {
+            if (spells[all[i]].categoryHash != categoryHash || !spells[all[i]].listed) continue;
+            if (collected >= offset) out[collected - offset] = all[i];
+            collected++;
+        }
+        return out;
+    }
+
+    function getSellerTotalVolume(address seller) external view returns (uint256 total) {
+        uint256[] memory ids = _spellIdsBySeller[seller];
+        for (uint256 i; i < ids.length; i++) {
+            total += spellVolumeWei[ids[i]];
+        }
+    }
+
+    function getSellerTradeCount(address seller) external view returns (uint256 total) {
+        uint256[] memory ids = _spellIdsBySeller[seller];
+        for (uint256 i; i < ids.length; i++) {
+            total += spellTradeCount[ids[i]];
+        }
+    }
+
+    receive() external payable {}
+}
+
