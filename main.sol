@@ -128,3 +128,68 @@ contract Spella is ReentrancyGuard, Pausable, Ownable {
         spellKeeper = address(0x8F2a5C1e4B7d0A3f6C9e2B5d8F1a4C7E0b3D6f9);
         deployedBlock = block.number;
         platformDomain = keccak256(abi.encodePacked("Spella_", block.chainid, block.prevrandao, SPEL_PLATFORM_SALT));
+        feeBps = 12;
+    }
+
+    function setPlatformPaused(bool paused) external onlyOwner {
+        platformPaused = paused;
+        emit PlatformPauseToggled(paused);
+    }
+
+    function setFeeBps(uint256 newFeeBps) external onlyOwner {
+        if (newFeeBps > SPEL_MAX_FEE_BPS) revert SPEL_InvalidFeeBps();
+        uint256 prev = feeBps;
+        feeBps = newFeeBps;
+        emit FeeBpsUpdated(prev, newFeeBps, block.number);
+    }
+
+    /// @notice List a new spell for sale. Caller becomes the seller. Spell is assigned next sequential spellId.
+    /// @param titleHash Keccak256 or other 32-byte identifier for the spell title (off-chain title → hash).
+    /// @param categoryHash Category identifier (e.g. keccak256("combat"), keccak256("healing")).
+    /// @param priceWei Price in wei that buyers must pay. Must be > 0.
+    /// @return spellId The assigned spell ID (1-based, increments with each new spell).
+    function listSpell(bytes32 titleHash, bytes32 categoryHash, uint256 priceWei) external whenNotPaused returns (uint256 spellId) {
+        if (titleHash == bytes32(0)) revert SPEL_InvalidTitleHash();
+        if (priceWei == 0) revert SPEL_ZeroPrice();
+        if (spellCounter >= SPEL_MAX_SPELLS) revert SPEL_MaxSpellsReached();
+        spellId = ++spellCounter;
+        spells[spellId] = SpellEntry({
+            seller: msg.sender,
+            titleHash: titleHash,
+            categoryHash: categoryHash,
+            priceWei: priceWei,
+            listedAtBlock: block.number,
+            listed: true
+        });
+        _spellIds.push(spellId);
+        _spellIdsBySeller[msg.sender].push(spellId);
+        emit SpellListed(spellId, msg.sender, titleHash, categoryHash, priceWei, block.number);
+    }
+
+    /// @notice Delist a spell. Only the spell seller or contract owner may call. Spell remains in storage but listed = false.
+    /// @param spellId The spell to delist.
+    function delistSpell(uint256 spellId) external {
+        if (spellId == 0 || spellId > spellCounter) revert SPEL_SpellNotFound();
+        SpellEntry storage entry = spells[spellId];
+        if (!entry.listed) revert SPEL_SpellNotListed();
+        if (entry.seller != msg.sender && msg.sender != owner()) revert SPEL_NotSeller();
+        entry.listed = false;
+        emit SpellDelisted(spellId, entry.seller, block.number);
+    }
+
+    /// @notice Update the listed price of a spell. Only the spell seller may call. Spell must still be listed.
+    /// @param spellId The spell to update.
+    /// @param newPriceWei New price in wei (must be > 0 and different from current).
+    function updateSpellPrice(uint256 spellId, uint256 newPriceWei) external {
+        if (spellId == 0 || spellId > spellCounter) revert SPEL_SpellNotFound();
+        SpellEntry storage entry = spells[spellId];
+        if (!entry.listed) revert SPEL_SpellNotListed();
+        if (entry.seller != msg.sender) revert SPEL_NotSeller();
+        if (newPriceWei == 0) revert SPEL_ZeroPrice();
+        if (newPriceWei == entry.priceWei) revert SPEL_SamePrice();
+        uint256 prev = entry.priceWei;
+        entry.priceWei = newPriceWei;
+        emit SpellPriceUpdated(spellId, prev, newPriceWei, block.number);
+    }
+
+    /// @notice Buy a listed spell. Sender must send msg.value >= spell price. Seller cannot buy own spell. Fee (feeBps) goes to treasury; rest to seller.
