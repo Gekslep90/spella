@@ -388,3 +388,68 @@ contract Spella is ReentrancyGuard, Pausable, Ownable {
 
     function getAccumulatedFees() external view returns (uint256) {
         return _feeAccum;
+    }
+
+    function getSpellIdsInCategory(bytes32 categoryHash) external view returns (uint256[] memory) {
+        uint256[] memory all = _spellIds;
+        uint256 count;
+        for (uint256 i; i < all.length; i++) {
+            if (spells[all[i]].categoryHash == categoryHash && spells[all[i]].listed) count++;
+        }
+        uint256[] memory out = new uint256[](count);
+        uint256 j;
+        for (uint256 i; i < all.length; i++) {
+            if (spells[all[i]].categoryHash == categoryHash && spells[all[i]].listed) out[j++] = all[i];
+        }
+        return out;
+    }
+
+    function getSpellIdsInCategoryUnfiltered(bytes32 categoryHash) external view returns (uint256[] memory) {
+        uint256[] memory all = _spellIds;
+        uint256 count;
+        for (uint256 i; i < all.length; i++) {
+            if (spells[all[i]].categoryHash == categoryHash) count++;
+        }
+        uint256[] memory out = new uint256[](count);
+        uint256 j;
+        for (uint256 i; i < all.length; i++) {
+            if (spells[all[i]].categoryHash == categoryHash) out[j++] = all[i];
+        }
+        return out;
+    }
+
+    function getListedSpellIdsInPriceRange(uint256 minPriceWei, uint256 maxPriceWei) external view returns (uint256[] memory) {
+        uint256[] memory all = _spellIds;
+        uint256 count;
+        for (uint256 i; i < all.length; i++) {
+            SpellEntry storage e = spells[all[i]];
+            if (e.listed && e.priceWei >= minPriceWei && e.priceWei <= maxPriceWei) count++;
+        }
+        uint256[] memory out = new uint256[](count);
+        uint256 j;
+        for (uint256 i; i < all.length; i++) {
+            SpellEntry storage e = spells[all[i]];
+            if (e.listed && e.priceWei >= minPriceWei && e.priceWei <= maxPriceWei) out[j++] = all[i];
+        }
+        return out;
+    }
+
+    function getListedSpellIdsBySellerInCategory(address seller, bytes32 categoryHash) external view returns (uint256[] memory) {
+        uint256[] memory ids = _spellIdsBySeller[seller];
+        uint256 count;
+        for (uint256 i; i < ids.length; i++) {
+            if (spells[ids[i]].listed && spells[ids[i]].categoryHash == categoryHash) count++;
+        }
+        uint256[] memory out = new uint256[](count);
+        uint256 j;
+        for (uint256 i; i < ids.length; i++) {
+            if (spells[ids[i]].listed && spells[ids[i]].categoryHash == categoryHash) out[j++] = ids[i];
+        }
+        return out;
+    }
+
+    function getSpellCount() external view returns (uint256) {
+        return spellCounter;
+    }
+
+    function getListedSpellCount() external view returns (uint256) {
