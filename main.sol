@@ -518,3 +518,68 @@ contract Spella is ReentrancyGuard, Pausable, Ownable {
         bytes32[] memory titleHashesOut,
         bytes32[] memory categoryHashesOut,
         uint256[] memory pricesWeiOut
+    ) {
+        uint256[] memory all = _spellIds;
+        uint256 listedCount;
+        for (uint256 i; i < all.length; i++) {
+            if (spells[all[i]].listed) listedCount++;
+        }
+        if (offset >= listedCount) {
+            spellIdsOut = new uint256[](0);
+            sellersOut = new address[](0);
+            titleHashesOut = new bytes32[](0);
+            categoryHashesOut = new bytes32[](0);
+            pricesWeiOut = new uint256[](0);
+            return (spellIdsOut, sellersOut, titleHashesOut, categoryHashesOut, pricesWeiOut);
+        }
+        uint256 end = offset + limit;
+        if (end > listedCount) end = listedCount;
+        uint256 n = end - offset;
+        spellIdsOut = new uint256[](n);
+        sellersOut = new address[](n);
+        titleHashesOut = new bytes32[](n);
+        categoryHashesOut = new bytes32[](n);
+        pricesWeiOut = new uint256[](n);
+        uint256 collected;
+        for (uint256 i; i < all.length && collected < end; i++) {
+            if (!spells[all[i]].listed) continue;
+            if (collected >= offset) {
+                uint256 idx = collected - offset;
+                SpellEntry storage e = spells[all[i]];
+                spellIdsOut[idx] = all[i];
+                sellersOut[idx] = e.seller;
+                titleHashesOut[idx] = e.titleHash;
+                categoryHashesOut[idx] = e.categoryHash;
+                pricesWeiOut[idx] = e.priceWei;
+            }
+            collected++;
+        }
+    }
+
+    function computeFeeForPrice(uint256 priceWei) external view returns (uint256 feeWei) {
+        return (priceWei * feeBps) / SPEL_BPS_BASE;
+    }
+
+    function computeSellerReceives(uint256 priceWei) external view returns (uint256) {
+        uint256 feeWei = (priceWei * feeBps) / SPEL_BPS_BASE;
+        return priceWei - feeWei;
+    }
+
+    function isSpellListed(uint256 spellId) external view returns (bool) {
+        if (spellId == 0 || spellId > spellCounter) return false;
+        return spells[spellId].listed;
+    }
+
+    function getSpellSeller(uint256 spellId) external view returns (address) {
+        if (spellId == 0 || spellId > spellCounter) revert SPEL_SpellNotFound();
+        return spells[spellId].seller;
+    }
+
+    function getSpellPrice(uint256 spellId) external view returns (uint256) {
+        if (spellId == 0 || spellId > spellCounter) revert SPEL_SpellNotFound();
+        return spells[spellId].priceWei;
+    }
+
+    function getSpellCategory(uint256 spellId) external view returns (bytes32) {
+        if (spellId == 0 || spellId > spellCounter) revert SPEL_SpellNotFound();
+        return spells[spellId].categoryHash;
