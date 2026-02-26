@@ -453,3 +453,68 @@ contract Spella is ReentrancyGuard, Pausable, Ownable {
     }
 
     function getListedSpellCount() external view returns (uint256) {
+        uint256 count;
+        for (uint256 i; i < _spellIds.length; i++) {
+            if (spells[_spellIds[i]].listed) count++;
+        }
+        return count;
+    }
+
+    function getSellerSpellCount(address seller) external view returns (uint256) {
+        return _spellIdsBySeller[seller].length;
+    }
+
+    function getSellerListedSpellCount(address seller) external view returns (uint256) {
+        uint256[] memory ids = _spellIdsBySeller[seller];
+        uint256 count;
+        for (uint256 i; i < ids.length; i++) {
+            if (spells[ids[i]].listed) count++;
+        }
+        return count;
+    }
+
+    function getSpellsPaginated(uint256 offset, uint256 limit) external view returns (
+        uint256[] memory spellIdsOut,
+        address[] memory sellersOut,
+        bytes32[] memory titleHashesOut,
+        bytes32[] memory categoryHashesOut,
+        uint256[] memory pricesWeiOut,
+        bool[] memory listedOut
+    ) {
+        uint256 total = _spellIds.length;
+        if (offset >= total) {
+            spellIdsOut = new uint256[](0);
+            sellersOut = new address[](0);
+            titleHashesOut = new bytes32[](0);
+            categoryHashesOut = new bytes32[](0);
+            pricesWeiOut = new uint256[](0);
+            listedOut = new bool[](0);
+            return (spellIdsOut, sellersOut, titleHashesOut, categoryHashesOut, pricesWeiOut, listedOut);
+        }
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 n = end - offset;
+        spellIdsOut = new uint256[](n);
+        sellersOut = new address[](n);
+        titleHashesOut = new bytes32[](n);
+        categoryHashesOut = new bytes32[](n);
+        pricesWeiOut = new uint256[](n);
+        listedOut = new bool[](n);
+        for (uint256 i; i < n; i++) {
+            uint256 spellId = _spellIds[offset + i];
+            SpellEntry storage e = spells[spellId];
+            spellIdsOut[i] = spellId;
+            sellersOut[i] = e.seller;
+            titleHashesOut[i] = e.titleHash;
+            categoryHashesOut[i] = e.categoryHash;
+            pricesWeiOut[i] = e.priceWei;
+            listedOut[i] = e.listed;
+        }
+    }
+
+    function getListedSpellsPaginated(uint256 offset, uint256 limit) external view returns (
+        uint256[] memory spellIdsOut,
+        address[] memory sellersOut,
+        bytes32[] memory titleHashesOut,
+        bytes32[] memory categoryHashesOut,
+        uint256[] memory pricesWeiOut
