@@ -63,3 +63,68 @@ contract Spella is ReentrancyGuard, Pausable, Ownable {
     error SPEL_Reentrancy();         // Reentrant call detected.
     error SPEL_MaxSpellsReached();   // spellCounter would exceed SPEL_MAX_SPELLS.
     error SPEL_SpellAlreadyListed();  // Spell is already listed (unused in current logic).
+    error SPEL_InsufficientPayment(); // msg.value < spell price on buySpell.
+    error SPEL_ArrayLengthMismatch(); // Array lengths differ in batch calls.
+    error SPEL_BatchTooLarge();      // Batch size exceeds SPEL_MAX_BATCH_LIST or SPEL_MAX_BATCH_DELIST.
+    error SPEL_ZeroSpells();         // Batch array length is zero.
+    error SPEL_InvalidTitleHash();   // titleHash is bytes32(0).
+    error SPEL_BuyerIsSeller();      // Buyer cannot be the spell seller.
+    error SPEL_SamePrice();          // New price equals current price in updateSpellPrice.
+
+    uint256 public constant SPEL_BPS_BASE = 10000;
+    uint256 public constant SPEL_MAX_FEE_BPS = 350;
+    uint256 public constant SPEL_MAX_SPELLS = 128;
+    uint256 public constant SPEL_PLATFORM_SALT = 0x3D8e1F4a7C0b2E5d9F3A6c8E1b4D7f0A3C6e9B2;
+    uint256 public constant SPEL_MAX_BATCH_LIST = 20;
+    uint256 public constant SPEL_MAX_BATCH_DELIST = 20;
+
+    address public immutable vault;
+    address public immutable treasury;
+    address public immutable spellKeeper;
+    uint256 public immutable deployedBlock;
+    bytes32 public immutable platformDomain;
+
+    uint256 public spellCounter;
+    uint256 public feeBps;
+    uint256 public tradeSequence;
+    bool public platformPaused;
+
+    struct SpellEntry {
+        address seller;
+        bytes32 titleHash;
+        bytes32 categoryHash;
+        uint256 priceWei;
+        uint256 listedAtBlock;
+        bool listed;
+    }
+
+    struct TradeRecord {
+        bytes32 tradeId;
+        uint256 spellId;
+        address buyer;
+        address seller;
+        uint256 priceWei;
+        uint256 feeWei;
+        uint256 atBlock;
+    }
+
+    mapping(uint256 => SpellEntry) public spells;
+    mapping(bytes32 => TradeRecord) public tradeSnapshots;
+    mapping(uint256 => uint256) public spellTradeCount;
+    mapping(uint256 => uint256) public spellVolumeWei;
+    mapping(bytes32 => uint256) public categoryVolumeWei;
+    mapping(address => uint256[]) private _spellIdsBySeller;
+    uint256[] private _spellIds;
+    uint256 private _feeAccum;
+
+    modifier whenNotPaused() {
+        if (platformPaused) revert SPEL_PlatformPaused();
+        _;
+    }
+
+    constructor() {
+        vault = address(0x1b3E6f9A2c5D8e0F4a7B9c1D3e5F7A0b2C4d6E8);
+        treasury = address(0x4c7A0d2E5f8B1c3D6e9F2a5B8d0C3e6F9A1b4D7);
+        spellKeeper = address(0x8F2a5C1e4B7d0A3f6C9e2B5d8F1a4C7E0b3D6f9);
+        deployedBlock = block.number;
+        platformDomain = keccak256(abi.encodePacked("Spella_", block.chainid, block.prevrandao, SPEL_PLATFORM_SALT));
