@@ -258,3 +258,68 @@ contract Spella is ReentrancyGuard, Pausable, Ownable {
         SpellEntry storage entry = spells[spellId];
         if (!entry.listed) revert SPEL_SpellNotListed();
         entry.listed = false;
+        emit SpellDelisted(spellId, entry.seller, block.number);
+    }
+
+    function batchListSpells(
+        bytes32[] calldata titleHashes,
+        bytes32[] calldata categoryHashes,
+        uint256[] calldata pricesWei
+    ) external whenNotPaused returns (uint256[] memory spellIds) {
+        uint256 n = titleHashes.length;
+        if (n != categoryHashes.length || n != pricesWei.length) revert SPEL_ArrayLengthMismatch();
+        if (n == 0) revert SPEL_ZeroSpells();
+        if (n > SPEL_MAX_BATCH_LIST) revert SPEL_BatchTooLarge();
+        if (spellCounter + n > SPEL_MAX_SPELLS) revert SPEL_MaxSpellsReached();
+
+        spellIds = new uint256[](n);
+        for (uint256 i; i < n;) {
+            if (titleHashes[i] == bytes32(0)) revert SPEL_InvalidTitleHash();
+            if (pricesWei[i] == 0) revert SPEL_ZeroPrice();
+            uint256 spellId = ++spellCounter;
+            spells[spellId] = SpellEntry({
+                seller: msg.sender,
+                titleHash: titleHashes[i],
+                categoryHash: categoryHashes[i],
+                priceWei: pricesWei[i],
+                listedAtBlock: block.number,
+                listed: true
+            });
+            spellIds[i] = spellId;
+            _spellIds.push(spellId);
+            _spellIdsBySeller[msg.sender].push(spellId);
+            emit SpellListed(spellId, msg.sender, titleHashes[i], categoryHashes[i], pricesWei[i], block.number);
+            unchecked { ++i; }
+        }
+        emit BatchSpellsListed(spellIds, block.number);
+    }
+
+    function batchDelistSpells(uint256[] calldata spellIdsToDelist) external {
+        uint256 n = spellIdsToDelist.length;
+        if (n == 0) revert SPEL_ZeroSpells();
+        if (n > SPEL_MAX_BATCH_DELIST) revert SPEL_BatchTooLarge();
+        for (uint256 i; i < n;) {
+            uint256 spellId = spellIdsToDelist[i];
+            if (spellId != 0 && spellId <= spellCounter) {
+                SpellEntry storage entry = spells[spellId];
+                if (entry.listed && (entry.seller == msg.sender || msg.sender == owner())) {
+                    entry.listed = false;
+                    emit SpellDelisted(spellId, entry.seller, block.number);
+                }
+            }
+            unchecked { ++i; }
+        }
+        emit BatchSpellsDelisted(spellIdsToDelist, block.number);
+    }
+
+    function withdrawVault(uint256 amountWei) external onlyOwner nonReentrant {
+        if (amountWei == 0) revert SPEL_ZeroAmount();
+        uint256 bal = address(this).balance;
+        if (amountWei > bal) amountWei = bal;
+        (bool ok,) = vault.call{value: amountWei}("");
+        if (!ok) revert SPEL_TransferFailed();
+        emit FeeSwept(vault, amountWei, block.number);
+    }
+
+    function getSpellIds() external view returns (uint256[] memory) {
+        return _spellIds;
