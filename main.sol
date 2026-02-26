@@ -1103,3 +1103,68 @@ contract SpellaViews {
     }
 
     function getSpellCategory(uint256 spellId) external view returns (bytes32) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSpellCategory(uint256)", spellId)
+        );
+        if (!ok || data.length == 0) return bytes32(0);
+        return abi.decode(data, (bytes32));
+    }
+
+    function getSpellTradeCount(uint256 spellId) external view returns (uint256) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSpellStats(uint256)", spellId)
+        );
+        if (!ok || data.length == 0) return 0;
+        (uint256 tradeCount,,) = abi.decode(data, (uint256, uint256, uint256));
+        return tradeCount;
+    }
+
+    function getSpellVolumeWei(uint256 spellId) external view returns (uint256) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSpellStats(uint256)", spellId)
+        );
+        if (!ok || data.length == 0) return 0;
+        (, uint256 volumeWei,) = abi.decode(data, (uint256, uint256, uint256));
+        return volumeWei;
+    }
+
+    function getSellerSpellCount(address seller) external view returns (uint256) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSellerSpellCount(address)", seller)
+        );
+        if (!ok || data.length == 0) return 0;
+        return abi.decode(data, (uint256));
+    }
+
+    function getSellerListedSpellCount(address seller) external view returns (uint256) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSellerListedSpellCount(address)", seller)
+        );
+        if (!ok || data.length == 0) return 0;
+        return abi.decode(data, (uint256));
+    }
+
+    function batchGetSpellPrices(uint256[] calldata spellIds) external view returns (uint256[] memory prices) {
+        prices = new uint256[](spellIds.length);
+        for (uint256 i; i < spellIds.length; i++) {
+            (bool ok, bytes memory data) = spella.staticcall(
+                abi.encodeWithSignature("getSpellPrice(uint256)", spellIds[i])
+            );
+            if (ok && data.length >= 32) {
+                prices[i] = abi.decode(data, (uint256));
+            }
+        }
+    }
+
+    function batchIsListed(uint256[] calldata spellIds) external view returns (bool[] memory listed) {
+        listed = new bool[](spellIds.length);
+        for (uint256 i; i < spellIds.length; i++) {
+            (bool ok, bytes memory data) = spella.staticcall(
+                abi.encodeWithSignature("isSpellListed(uint256)", spellIds[i])
+            );
+            if (ok && data.length >= 32) {
+                listed[i] = abi.decode(data, (bool));
+            }
+        }
+    }
+
