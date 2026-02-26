@@ -1038,3 +1038,68 @@ contract SpellaViews {
         uint256 total = listedIds.length;
         if (offset >= total) return new SpellView[](0);
         uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 n = end - offset;
+        views = new SpellView[](n);
+        for (uint256 i; i < n; i++) {
+            views[i] = this.getSpellView(listedIds[offset + i]);
+        }
+    }
+
+    function getListedSpellViewsInCategory(bytes32 categoryHash) external view returns (SpellView[] memory views) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSpellIdsInCategory(bytes32)", categoryHash)
+        );
+        if (!ok || data.length == 0) return new SpellView[](0);
+        uint256[] memory ids = abi.decode(data, (uint256[]));
+        views = new SpellView[](ids.length);
+        for (uint256 i; i < ids.length; i++) {
+            views[i] = this.getSpellView(ids[i]);
+        }
+    }
+
+    function getListedSpellViewsInPriceRange(uint256 minPriceWei, uint256 maxPriceWei) external view returns (SpellView[] memory views) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getListedSpellIdsInPriceRange(uint256,uint256)", minPriceWei, maxPriceWei)
+        );
+        if (!ok || data.length == 0) return new SpellView[](0);
+        uint256[] memory ids = abi.decode(data, (uint256[]));
+        views = new SpellView[](ids.length);
+        for (uint256 i; i < ids.length; i++) {
+            views[i] = this.getSpellView(ids[i]);
+        }
+    }
+
+    function getSellerSpellViews(address seller) external view returns (SpellView[] memory views) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSpellIdsBySeller(address)", seller)
+        );
+        if (!ok || data.length == 0) return new SpellView[](0);
+        uint256[] memory ids = abi.decode(data, (uint256[]));
+        views = new SpellView[](ids.length);
+        for (uint256 i; i < ids.length; i++) {
+            views[i] = this.getSpellView(ids[i]);
+        }
+    }
+
+    function getSellerListedSpellViews(address seller) external view returns (SpellView[] memory views) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getListedSpellIdsBySeller(address)", seller)
+        );
+        if (!ok || data.length == 0) return new SpellView[](0);
+        uint256[] memory ids = abi.decode(data, (uint256[]));
+        views = new SpellView[](ids.length);
+        for (uint256 i; i < ids.length; i++) {
+            views[i] = this.getSpellView(ids[i]);
+        }
+    }
+
+    function getSpellTitleHash(uint256 spellId) external view returns (bytes32) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSpellTitleHash(uint256)", spellId)
+        );
+        if (!ok || data.length == 0) return bytes32(0);
+        return abi.decode(data, (bytes32));
+    }
+
+    function getSpellCategory(uint256 spellId) external view returns (bytes32) {
