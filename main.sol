@@ -1233,3 +1233,68 @@ contract SpellaViews {
             abi.encodeWithSignature("platformDomain()")
         );
         if (!ok || data.length == 0) return bytes32(0);
+        return abi.decode(data, (bytes32));
+    }
+
+    function computeFeeWeiForPrice(uint256 priceWei) external view returns (uint256) {
+        return this.getFeeForPrice(priceWei);
+    }
+
+    function computeNetToSellerForPrice(uint256 priceWei) external view returns (uint256) {
+        return this.getSellerReceivesForPrice(priceWei);
+    }
+
+    function getSpellFullView(uint256 spellId) external view returns (
+        address seller,
+        bytes32 titleHash,
+        bytes32 categoryHash,
+        uint256 priceWei,
+        uint256 listedAtBlock,
+        bool listed,
+        uint256 tradeCount,
+        uint256 volumeWei
+    ) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSpellFull(uint256)", spellId)
+        );
+        if (!ok || data.length == 0) return (address(0), bytes32(0), bytes32(0), 0, 0, false, 0, 0);
+        return abi.decode(data, (address, bytes32, bytes32, uint256, uint256, bool, uint256, uint256));
+    }
+
+    function getTotalVolumeWei() external view returns (uint256) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("totalVolumeWei()")
+        );
+        if (!ok || data.length == 0) return 0;
+        return abi.decode(data, (uint256));
+    }
+
+    function getSellerTotalVolumeView(address seller) external view returns (uint256) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSellerTotalVolume(address)", seller)
+        );
+        if (!ok || data.length == 0) return 0;
+        return abi.decode(data, (uint256));
+    }
+
+    function getSellerTradeCountView(address seller) external view returns (uint256) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSellerTradeCount(address)", seller)
+        );
+        if (!ok || data.length == 0) return 0;
+        return abi.decode(data, (uint256));
+    }
+
+    function getSpellIdsListedAfterBlockView(uint256 fromBlock) external view returns (uint256[] memory) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getSpellIdsListedAfterBlock(uint256)", fromBlock)
+        );
+        if (!ok || data.length == 0) return new uint256[](0);
+        return abi.decode(data, (uint256[]));
+    }
+
+    function getCategoryVolumesView(bytes32[] calldata categoryHashes) external view returns (uint256[] memory) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getCategoryVolumes(bytes32[])", categoryHashes)
+        );
+        if (!ok || data.length == 0) return new uint256[](categoryHashes.length);
