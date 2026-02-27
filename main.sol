@@ -1168,3 +1168,68 @@ contract SpellaViews {
         }
     }
 
+    function batchGetSellers(uint256[] calldata spellIds) external view returns (address[] memory sellers) {
+        sellers = new address[](spellIds.length);
+        for (uint256 i; i < spellIds.length; i++) {
+            (bool ok, bytes memory data) = spella.staticcall(
+                abi.encodeWithSignature("getSpellSeller(uint256)", spellIds[i])
+            );
+            if (ok && data.length >= 32) {
+                sellers[i] = abi.decode(data, (address));
+            }
+        }
+    }
+
+    function getVaultAddress() external view returns (address) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("vault()")
+        );
+        if (!ok || data.length == 0) return address(0);
+        return abi.decode(data, (address));
+    }
+
+    function getTreasuryAddress() external view returns (address) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("treasury()")
+        );
+        if (!ok || data.length == 0) return address(0);
+        return abi.decode(data, (address));
+    }
+
+    function getSpellKeeperAddress() external view returns (address) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("spellKeeper()")
+        );
+        if (!ok || data.length == 0) return address(0);
+        return abi.decode(data, (address));
+    }
+
+    function getFeeBps() external view returns (uint256) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("feeBps()")
+        );
+        if (!ok || data.length == 0) return 0;
+        return abi.decode(data, (uint256));
+    }
+
+    function getPlatformPaused() external view returns (bool) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("platformPaused()")
+        );
+        if (!ok || data.length == 0) return true;
+        return abi.decode(data, (bool));
+    }
+
+    function getDeployedBlock() external view returns (uint256) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("deployedBlock()")
+        );
+        if (!ok || data.length == 0) return 0;
+        return abi.decode(data, (uint256));
+    }
+
+    function getPlatformDomain() external view returns (bytes32) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("platformDomain()")
+        );
+        if (!ok || data.length == 0) return bytes32(0);
