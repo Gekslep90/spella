@@ -1298,3 +1298,61 @@ contract SpellaViews {
             abi.encodeWithSignature("getCategoryVolumes(bytes32[])", categoryHashes)
         );
         if (!ok || data.length == 0) return new uint256[](categoryHashes.length);
+        return abi.decode(data, (uint256[]));
+    }
+
+    function getListedIdsForCategoriesView(bytes32[] calldata categoryHashes) external view returns (uint256[][] memory spellIdLists) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getListedIdsForCategories(bytes32[])", categoryHashes)
+        );
+        if (!ok || data.length == 0) return new uint256[][](categoryHashes.length);
+        return abi.decode(data, (uint256[][]));
+    }
+
+    function getMultipleSpellsView(uint256[] calldata spellIds) external view returns (
+        address[] memory sellers,
+        bytes32[] memory titleHashes,
+        bytes32[] memory categoryHashes,
+        uint256[] memory pricesWei,
+        bool[] memory listedFlags
+    ) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getMultipleSpells(uint256[])", spellIds)
+        );
+        if (!ok || data.length == 0) {
+            uint256 n = spellIds.length;
+            return (new address[](n), new bytes32[](n), new bytes32[](n), new uint256[](n), new bool[](n));
+        }
+        return abi.decode(data, (address[], bytes32[], bytes32[], uint256[], bool[]));
+    }
+
+    function getMultipleSpellStatsView(uint256[] calldata spellIds) external view returns (
+        uint256[] memory tradeCounts,
+        uint256[] memory volumesWei
+    ) {
+        (bool ok, bytes memory data) = spella.staticcall(
+            abi.encodeWithSignature("getMultipleSpellStats(uint256[])", spellIds)
+        );
+        if (!ok || data.length == 0) {
+            uint256 n = spellIds.length;
+            return (new uint256[](n), new uint256[](n));
+        }
+        return abi.decode(data, (uint256[], uint256[]));
+    }
+
+    /**
+     * SpellaViews is a read-only mirror for the Spella contract. It does not hold funds or modify Spella state.
+     * Use it from UIs or off-chain indexers to batch view calls or to paginate listed spells without
+     * calling Spella directly many times. SPEL_VIEW_MAX_PAGE caps pagination at 50 items per page.
+     * All getXxxView / getXxxAddress / batchXxx functions perform staticcall to the Spella address
+     * set at construction. Deploy Spella first, then deploy SpellaViews(spellaAddress).
+     * Spell-book trading: list by titleHash and categoryHash; buy with wei; fees to treasury.
+     * Constants on Spella: SPEL_BPS_BASE 10000, SPEL_MAX_FEE_BPS 350, SPEL_MAX_SPELLS 128.
+     * Immutable addresses: vault, treasury, spellKeeper set in Spella constructor.
+     * Fee sweep: call Spella.sweepFees() to send accumulated fees to treasury.
+     * List: listSpell(titleHash, categoryHash, priceWei). Buy: buySpell(spellId) with msg.value.
+     * Delist: delistSpell(spellId) as seller or owner; keeperDelist(spellId) as keeper.
+     * Batch: batchListSpells, batchDelistSpells for multiple spells in one tx.
+     * Pause: setPlatformPaused(true/false) by owner only.
+     */
+}
